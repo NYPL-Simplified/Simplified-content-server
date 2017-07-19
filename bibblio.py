@@ -351,11 +351,14 @@ class BibblioCoverageProvider(WorkCoverageProvider):
             zip_file, package_document_path, ['spine', 'manifest']
         )
 
+        # Get all of the items in the spine, where an ordered, TOC-esque
+        # list of textual reading content is located by identifier.
         text_basefiles = list()
         for child in spine:
             if child.tag == '{%s}itemref' % EpubAccessor.IDPF_NAMESPACE:
                 text_basefiles.append(child.get('idref'))
 
+        # Get the elements that correspond to the textual reading content.
         epub_item_elements = list()
         for child in manifest:
             if (child.tag == '{%s}item' % EpubAccessor.IDPF_NAMESPACE
@@ -379,10 +382,13 @@ class BibblioCoverageProvider(WorkCoverageProvider):
         return cls._shrink_text(accumulated_text)
 
     @classmethod
-    def _shrink_text(cls, text):
+    def _shrink_text(cls, text, epub_filter_class=None):
         """Removes excessive whitespace and shortens text according to
         the API requirements
         """
+        if epub_filter_class:
+            text = epub_filter_class.filter(text)
+
         text = re.sub(r'(\s?\n\s+|\s+\n\s?)+', '\n', text)
         text = re.sub(r'\t{2,}', '\t', text)
         text = re.sub(r' {2,}', ' ', text)
@@ -393,3 +399,87 @@ class BibblioCoverageProvider(WorkCoverageProvider):
     def _html_to_text(cls, html_content):
         """Returns raw text from HTML"""
         return BeautifulSoup(html_content, 'lxml').get_text()
+
+
+class EpubFilter(object):
+
+    """A base class for source-specific EPUB filtering. This class
+    removes front matter and distributor-specific text that can impact
+    recommendations created by the BibblioAPI.
+    """
+
+    FILLER_RE = '\s*'
+    PUNCTUATION_RE = '(\.|,|-|;)*'
+
+    ## Values for subclass definition ##
+
+    # SPINE_IDREFS lists idref values in the EPUB spine that can be
+    # completely ignored, usually because they're chock full of text
+    # specific to the distributor without any useful text to support
+    # recommendations.
+    SPINE_IDREFS = None
+
+    # FILTERED_PHRASES lists strings that are directly related to the
+    # distributor in decreasing order of specificity.
+    FILTERED_PHRASES = None
+
+
+    @classmethod
+    def filter_spine_idrefs(cls, spine_idrefs):
+        for s in spine_idrefs:
+            if s in cls.SPINE_IDREFS:
+                print "'%s' in SPINE_IDREFS"
+        return [s for s in spine_idrefs if s in spine_idrefs]
+
+    @classmethod
+    def phrase_regex(cls, phrase):
+        """Incorporates whitespace catchall string into a phrase"""
+        words = [word for word in phrase.split() if word]
+        phrase = cls.FILLER_RE.join(words)
+        return re.compile(phrase, re.IGNORECASE)
+
+    @classmethod
+    def filter(cls, text):
+        filtered_text = text
+        for phrase in cls.FILTERED_PHRASES:
+            phrase_re = cls.phrase_regex(phrase)
+            filtered_text = re.sub(phrase_re, '', filtered_text)
+        return filtered_text
+
+
+class GutenbergEpubFilter(EpubFilter):
+
+    SPINE_IDREFS = set(['pg-header'])
+
+    FILTERED_PHRASES = [
+        (
+            'This ebook is for the use of anyone anywhere (in the United'
+            ' States)? (and most other parts of the world)? at no cost and'
+            ' with almost no restrictions whatsoever. You may copy it,'
+            ' give it away or re-use it under the terms of the Project'
+            ' Gutenberg License included with this ebook or online at'
+            ' (http)?s?(://)?www.gutenberg.org(/license)?. If you are not'
+            ' locatedin the United States, you\'ll have to check the'
+            ' laws of the country where you are located before using'
+            ' this ebook.'
+        ),
+        (
+            'This eBook is for the use of anyone anywhere at no cost and'
+            ' with almost no restrictions whatsoever. You may copy it,'
+            ' give it away or re-use it under the terms of the Project'
+            ' Gutenberg License included with this eBook or online at'
+            ' (http)?s?(://)?www.gutenberg.org(/license)?'
+        ),
+        '(http)?s?(://)?www.gutenberg.org/(\w|\.|-)*',
+        'The Project Gutenberg Ebook of',
+        'Project Gutenberg License',
+        'Project Gutenberg Ebook',
+        'Project Gutenberg',
+    ]
+
+
+class FeedbooksEpubFilter(EpubFilter):
+
+    SPINE_IDREFS = set(['feedbooks'])
+
+    FILTERED_PHRASES = []
