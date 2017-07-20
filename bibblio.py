@@ -122,9 +122,7 @@ class BibblioAPI(object):
         if description:
             catalogue['description'] = description
 
-        catalogue = self.set_timestamp(catalogue, create=True)
         catalogue = json.dumps(catalogue)
-
         response = HTTP.post_with_timeout(
             self.CATALOGUES_ENDPOINT, catalogue,
             headers=self.default_headers,
@@ -289,11 +287,17 @@ class BibblioCoverageProvider(WorkCoverageProvider):
         name = edition.title + ' by ' + edition.author
         url = self.edition_permalink(edition)
         text, data_source = self.get_full_text(work)
-        provider = dict(name=data_source.name)
+
+        data_source_name = data_source.name
+        provider = dict(name=data_source_name)
 
         content_item = dict(
             name=name, url=url, text=text, provider=provider
         )
+
+        custom_identifier = data_source.name+'|'+edition.primary_identifier.urn
+        content_item['customUniqueIdentifier'] = custom_identifier
+
         if self.catalogue_id:
             content_item['catalogueId'] = self.catalogue_id
 
