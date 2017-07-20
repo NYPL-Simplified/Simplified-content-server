@@ -173,6 +173,25 @@ class BibblioAPI(object):
 
         return content_item
 
+    def delete_content_item(self, identifier):
+        content_item_id = identifier
+
+        if isinstance(identifier, Identifier):
+            if not identifier.type == Identifier.BIBBLIO_CONTENT_ITEM_ID:
+                raise TypeError('Identifier is not a Bibblio Content Item')
+
+            content_item_id = identifier.identifier
+        delete_url = self.CONTENT_ITEMS_ENDPOINT + content_item_id
+        response = HTTP.request_with_timeout(
+            'DELETE', delete_url, headers=self.default_headers,
+            allowed_response_codes=[200],
+            disallowed_response_codes=['4xx']
+        )
+
+        if not isinstance(identifier, basestring) and response.status_code == 200:
+            self._db.delete(identifier)
+            self.log.info("DELETED: Bibblio Content Item '%s'" % content_item_id)
+
 
 class BibblioCoverageProvider(WorkCoverageProvider):
 
