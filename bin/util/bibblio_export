@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Export certain works to Bibblio as Bibblio ContentItems"""
 import argparse
+import logging
 import os
 import sys
 from nose.tools import set_trace
@@ -25,12 +26,24 @@ parser.add_argument(
     '--languages', type=unicode, nargs='*', default=u'eng',
     help='Look for Works in these languages'
 )
+parser.add_argument(
+    '--fiction', action='store_true',
+    help='Export fiction and nonfiction texts'
+)
 
 parsed = parser.parse_args()
+fiction = parsed.fiction or False
 
-_db = production_session()
-BibblioCoverageProvider(
-    _db, parsed.custom_list_identifier,
-    languages=parsed.languages,
-    catalogue_identifier=parsed.catalogue_identifier
-).run()
+try:
+    _db = production_session()
+    BibblioCoverageProvider(
+        _db, parsed.custom_list_identifier,
+        languages=parsed.languages,
+        fiction=fiction,
+        catalogue_identifier=parsed.catalogue_identifier
+    ).run()
+except Exception as e:
+    logging.error('Fatal error raised: %r', e, exc_info=e)
+finally:
+    _db.commit()
+    _db.close()
