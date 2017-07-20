@@ -89,7 +89,7 @@ class BibblioAPI(object):
     @property
     def token(self):
         if (self._credential and
-            self._credential.expires <= datetime.utcnow()):
+            self._credential.expires > datetime.utcnow()):
             return self._credential.credential
 
         credential = Credential.lookup(
