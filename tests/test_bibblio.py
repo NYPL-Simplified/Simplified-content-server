@@ -250,13 +250,20 @@ class TestBibblioCoverageProvider(DatabaseTest):
         # A nonfiction Work that's not covered is included in the result.
         assert nonfiction in result
 
-        # When fiction is being included, the fiction edition is included.
+
+        # Unset Work.fiction for the work with its edition listed for
+        # the next test.
+        edition_listed.fiction = None
+
+        # When fiction is being included, fiction and undefined
+        # editions are included.
         self.provider.fiction = True
         result = self.provider.items_that_need_coverage()
         assert fiction in result
-        assert nonfiction in result
         assert edition_listed in result
-        # But other ignored editions are still ignored.
+        # But nonfiction is left behind.
+        assert nonfiction not in result
+        # And other ignored editions are ignored.
         assert listless not in result
         assert covered not in result
 
@@ -308,7 +315,10 @@ class TestBibblioCoverageProvider(DatabaseTest):
         )
         result = self.provider.content_item_from_work(self.work)
 
-        eq_(['name', 'provider', 'text', 'url'], sorted(result.keys()))
+        eq_(
+            ['customUniqueIdentifier', 'name', 'provider', 'text', 'url'],
+            sorted(result.keys())
+        )
         eq_('%s by %s' % (self.edition.title, self.edition.author), result.get('name'))
         eq_({ 'name' : DataSource.PLYMPTON }, result['provider'])
 
@@ -358,11 +368,14 @@ class TestBibblioCoverageProvider(DatabaseTest):
         eq_(DataSource.FEEDBOOKS, data_source.name)
 
     def test_extract_plaintext_from_epub(self):
+        source = DataSource.lookup(self._db, DataSource.FEEDBOOKS)
         epub = self.sample_file('180.epub')
         result = None
 
         with EpubAccessor.open_epub('677.epub', content=epub) as (zip_file, package_path):
-            result = BibblioCoverageProvider.extract_plaintext_from_epub(zip_file, package_path)
+            result = BibblioCoverageProvider.extract_plaintext_from_epub(
+                zip_file, package_path, source
+            )
 
         # We get back a string.
         eq_(True, isinstance(result, str))

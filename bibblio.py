@@ -349,6 +349,8 @@ class BibblioCoverageProvider(WorkCoverageProvider):
         if not self.fiction:
             # Only get nonfiction. This is the default setting.
             qu = qu.filter(Work.fiction==False)
+        else:
+            qu = qu.filter(or_(Work.fiction==True, Work.fiction==None))
 
         if self.languages:
             # We only want a particular language.
@@ -433,7 +435,10 @@ class BibblioCoverageProvider(WorkCoverageProvider):
             .filter(
                 LicensePool.work_id==work.id,
                 DeliveryMechanism.drm_scheme==DeliveryMechanism.NO_DRM,
-                Representation.status_code==200
+                or_(
+                    Representation.status_code==200,
+                    Representation.status_code==None
+                )
             )\
             .options(
                 eagerload(Representation.resource, Resource.data_source))
