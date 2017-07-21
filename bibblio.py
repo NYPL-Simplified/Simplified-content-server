@@ -9,7 +9,7 @@ from urlparse import urlparse
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from sqlalchemy import or_
+from sqlalchemy import or_, not_
 from sqlalchemy.orm import (
     aliased,
     eagerload,
@@ -32,6 +32,7 @@ from core.model import (
     DataSource,
     DeliveryMechanism,
     Edition,
+    Equivalency,
     ExternalIntegration,
     Identifier,
     LicensePool,
@@ -327,6 +328,21 @@ class BibblioCoverageProvider(WorkCoverageProvider):
         return DataSource.lookup(self._db, DataSource.BIBBLIO)
 
     def items_that_need_coverage(self, identifiers=None, **kwargs):
+        equivalent = aliased(Identifier)
+        ids_for_bibblio_equivalents = self._db.query(Identifier.id)\
+            .join(Identifier.equivalencies)\
+            .join(equivalent, Equivalency.output_id==equivalent.id)\
+            .filter(
+                equivalent.type==Identifier.BIBBLIO_CONTENT_ITEM_ID
+            )
+
+        ids_covered_with_equivalents = Identifier.recursively_equivalent_identifier_ids(
+            self._db, ids_for_bibblio_equivalents
+        )
+        ids_covered_by_equivalent = list()
+        for covered_identifier, equivalents in ids_covered_with_equivalents.items():
+            ids_covered_by_equivalent.extend(equivalents)
+
         qu = super(BibblioCoverageProvider, self).items_that_need_coverage(
                 identifiers=identifiers, **kwargs)
 
@@ -342,9 +358,20 @@ class BibblioCoverageProvider(WorkCoverageProvider):
                 .outerjoin(CustomListEntry.customlist)\
                 .outerjoin(edition_entry, Edition.custom_list_entries)\
                 .outerjoin(edition_list, edition_entry.customlist)\
-                .filter(or_(
-                    CustomList.id==self.custom_list.id,
-                    edition_list.id==self.custom_list.id))\
+                .join(Work.license_pools).join(LicensePool.identifier)\
+                .filter(
+                    or_(
+                        CustomList.id==self.custom_list.id,
+                        edition_list.id==self.custom_list.id
+                    ),
+                    not_(
+                        or_(
+                            LicensePool.suppressed==True,
+                            LicensePool.superceded==True
+                        )
+                    ),
+                    Identifier.id.notin_(ids_covered_by_equivalent)
+                )\
                 .options(eagerload(Work.presentation_edition)).distinct()
 
         if not self.fiction:
