@@ -259,6 +259,7 @@ class GutenbergEpubFilter(EpubFilter):
         ),
         '(http)?s?(:\/\/)?www\.gutenberg\.(org|net)(\/)?(\w|\.|-)*',
         '(The)? Project Gutenberg Ebook (of)?',
+        '(The)? Project Gutenberg E(-)?text (of)?',
         'Project Gutenberg License',
         'Project Gutenberg',
         'Gutenberg',
