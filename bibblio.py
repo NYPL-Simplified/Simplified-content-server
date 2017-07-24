@@ -9,7 +9,7 @@ from urlparse import urlparse
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from sqlalchemy import or_, not_
+from sqlalchemy import or_
 from sqlalchemy.orm import (
     aliased,
     eagerload,
@@ -32,7 +32,6 @@ from core.model import (
     DataSource,
     DeliveryMechanism,
     Edition,
-    Equivalency,
     ExternalIntegration,
     Identifier,
     LicensePool,
