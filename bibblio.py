@@ -127,8 +127,7 @@ class BibblioAPI(object):
         response = HTTP.post_with_timeout(
             self.CATALOGUES_ENDPOINT, catalogue,
             headers=self.default_headers,
-            allowed_response_codes=[201],
-            disallowed_response_codes=['4xx']
+            allowed_response_codes=[201]
         )
 
         catalogue = response.json()
@@ -159,8 +158,7 @@ class BibblioAPI(object):
         response = HTTP.post_with_timeout(
             self.CONTENT_ITEMS_ENDPOINT, content_item,
             headers=self.default_headers,
-            allowed_response_codes=[201],
-            disallowed_response_codes=['4xx']
+            allowed_response_codes=[201]
         )
 
         content_item = response.json()
@@ -183,8 +181,7 @@ class BibblioAPI(object):
         delete_url = self.CONTENT_ITEMS_ENDPOINT + content_item_id
         response = HTTP.request_with_timeout(
             'DELETE', delete_url, headers=self.default_headers,
-            allowed_response_codes=[200],
-            disallowed_response_codes=['4xx']
+            allowed_response_codes=[200]
         )
 
         if not isinstance(identifier, basestring) and response.status_code == 200:
@@ -554,5 +551,3 @@ class BibblioCoverageProvider(WorkCoverageProvider):
     def _html_to_text(cls, html_content):
         """Returns raw text from HTML"""
         return BeautifulSoup(html_content, 'lxml').get_text()
-
-
