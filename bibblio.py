@@ -196,7 +196,6 @@ class EpubFilter(object):
     """
 
     FILLER_RE = '\s*'
-    PUNCTUATION_RE = '(\.|,|-|;)*'
 
     ## Values for subclass definition ##
 
