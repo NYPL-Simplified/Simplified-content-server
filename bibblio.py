@@ -212,22 +212,27 @@ class EpubFilter(object):
 
     @classmethod
     def filter_spine_idrefs(cls, spine_idrefs):
+        """Returns spine idrefs that have not been blacklisted"""
         return [s for s in spine_idrefs if s not in cls.SPINE_IDREFS]
 
     @classmethod
     def phrase_regex(cls, phrase):
         """Incorporates whitespace catchall string into a phrase"""
+        length = len(phrase)
+        if re.compile('\s{%d}' % length).match(phrase):
+            # The phrase is all whitespace. Return it as is.
+            return re.compile(phrase)
         words = [word for word in phrase.split() if word]
         phrase = cls.FILLER_RE.join(words)
         return re.compile(phrase, re.IGNORECASE)
 
     @classmethod
     def filter(cls, text):
+        """Filters blacklisted phrases out of a text string"""
         filtered_text = text
-
         for phrase in cls.FILTERED_PHRASES:
             phrase_re = cls.phrase_regex(phrase)
-            filtered_text = re.sub(phrase_re, '', filtered_text)
+            filtered_text = re.sub(phrase_re, ' ', filtered_text)
         return filtered_text
 
 

@@ -40,6 +40,7 @@ from ..config import (
 from ..bibblio import (
     BibblioAPI,
     BibblioCoverageProvider,
+    EpubFilter,
 )
 
 
@@ -133,6 +134,78 @@ class TestBibblioAPI(DatabaseTest):
         eq_(result['dateCreated'], result['dateModified'])
         assert isinstance(result['dateCreated'], basestring)
         assert result['dateCreated'] > (now.isoformat() + 'Z')
+
+
+class TestEpubFilter(object):
+
+
+    class MockEpubFilter(EpubFilter):
+
+        SPINE_IDREFS = set(['pub-data', 'cover'])
+
+        FILTERED_PHRASES = [
+            'We left school\.? (we)? (do)? lurk late',
+            'Seven (at the)+ Golden Shovel',
+            'sin',
+            'we\s*',
+            '\n        ',
+        ]
+
+    def test_filter_spine_idrefs(self):
+        result = self.MockEpubFilter.filter_spine_idrefs([])
+        eq_(0, len(result))
+
+        idrefs = ['banana', 'pub-data', 'elephant', 'chapter-3']
+        result = self.MockEpubFilter.filter_spine_idrefs(idrefs)
+        assert 'pub-data' not in result
+        eq_(3, len(result))
+
+    def test_phrase_regex(self):
+        result = self.MockEpubFilter.phrase_regex(
+            'We left school(.)? (we)? (do)? lurk late'
+        )
+
+        # The result is regex.
+        eq_(None, result.match('We left school.'))
+        assert result.match('We left school. lurk late.')
+
+        # The result is case insensitive.
+        assert result.match('WE LEFT SCHOOL. LURK LATE.')
+
+        # The result accounts for whitespace.
+        assert result.match('we left school           \nwe do lurk late')
+
+    def test_filter(self):
+        original = """The Pool Players.
+        Seven at the Golden Shovel.
+
+        We real cool. We
+        Left school. We
+
+        Lurk late. We
+        Strike straight. We
+
+        Sing sin. We
+        Thin gin. We
+
+        Jazz June. We
+        Die soon."""
+
+        # Phrases from MockEpubFilter.FILTERED_PHRASES are removed.
+        expected = ('The Pool Players.  .\n '
+            ' real cool.  .  Strike straight.  g  . '
+            ' Thin gin.  Jazz June.  Die soon.')
+        eq_(expected, self.MockEpubFilter.filter(original))
+
+        # Phrases are filtered in order.
+        class TieredFilter(EpubFilter):
+            FILTERED_PHRASES = [
+                'Left school\.',
+                'Real cool\. Left school\. Lurk late\.'
+            ]
+
+        result = TieredFilter.filter('Real cool. Left school. Lurk late.')
+        eq_('Real cool.   Lurk late.', result)
 
 
 class TestBibblioCoverageProvider(DatabaseTest):
