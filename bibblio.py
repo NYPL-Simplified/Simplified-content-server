@@ -213,9 +213,6 @@ class EpubFilter(object):
 
     @classmethod
     def filter_spine_idrefs(cls, spine_idrefs):
-        for s in spine_idrefs:
-            if s in cls.SPINE_IDREFS:
-                print "'%s' in SPINE_IDREFS" % s
         return [s for s in spine_idrefs if s not in cls.SPINE_IDREFS]
 
     @classmethod
@@ -262,10 +259,6 @@ class GutenbergEpubFilter(EpubFilter):
         'Project Gutenberg',
         'Gutenberg',
     ]
-
-    # DISQUALIFYING_PHRASES = [
-    #     'START : FULL (_)? LICENSE (\.|\*|\n)* THE FULL PROJECT GUTENBERG LICENSE'
-    # ]
 
 
 class FeedbooksEpubFilter(EpubFilter):
