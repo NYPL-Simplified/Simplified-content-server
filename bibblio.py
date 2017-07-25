@@ -34,6 +34,7 @@ from core.model import (
     Edition,
     ExternalIntegration,
     Identifier,
+    Library,
     LicensePool,
     LicensePoolDeliveryMechanism,
     Representation,
@@ -336,16 +337,18 @@ class BibblioCoverageProvider(WorkCoverageProvider):
                 .outerjoin(CustomListEntry.customlist)\
                 .outerjoin(edition_entry, Edition.custom_list_entries)\
                 .outerjoin(edition_list, edition_entry.customlist)\
-                .join(Work.license_pools).join(LicensePool.identifier)\
+                .join(Work.license_pools)\
                 .filter(
                     or_(
                         CustomList.id==self.custom_list.id,
                         edition_list.id==self.custom_list.id
-                    ),
-                    LicensePool.suppressed==False,
-                    LicensePool.superceded==False
+                    )
                 )\
                 .options(eagerload(Work.presentation_edition)).distinct()
+
+        library = Library.default(self._db)
+        qu = library.restrict_to_ready_deliverable_works(qu, Work)
+        qu = qu.filter(LicensePool.superceded==False)
 
         if not self.fiction:
             # Only get nonfiction. This is the default setting.
@@ -440,8 +443,7 @@ class BibblioCoverageProvider(WorkCoverageProvider):
                     Representation.status_code==200,
                     Representation.status_code==None
                 )
-            )\
-            .options(
+            ).options(
                 eagerload(Representation.resource, Resource.data_source))
 
         text_representation = representations.filter(

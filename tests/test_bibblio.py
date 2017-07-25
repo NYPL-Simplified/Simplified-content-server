@@ -239,7 +239,8 @@ class TestBibblioCoverageProvider(DatabaseTest):
         return sample_data(filename, 'bibblio')
 
     def add_representation(self, source_name, media_type, content,
-                           identifier=None):
+                           identifier=None
+    ):
         """Utility method to add representations to the local identifier"""
         identifier = identifier or self.identifier
         [pool] = identifier.licensed_through
@@ -309,7 +310,10 @@ class TestBibblioCoverageProvider(DatabaseTest):
         works = [listless, edition_listed, covered, fiction]
         for work in works:
             work.presentation_edition.data_source = source
-            [setattr(lp, 'data_source', source) for lp in work.license_pools]
+            for lp in work.license_pools:
+                [delivery_mechanism] = lp.identifier.delivery_mechanisms
+                lp.data_source = delivery_mechanism.data_source = source
+
 
         result = self.provider.items_that_need_coverage()
         # A Work that's not in the list is not included in the result.
@@ -439,6 +443,29 @@ class TestBibblioCoverageProvider(DatabaseTest):
         text, data_source = self.provider.get_full_text(self.work)
         eq_(True, 'Dostoyevsky' in text)
         eq_(DataSource.FEEDBOOKS, data_source.name)
+
+    def test_get_full_text_ignores_bad_representations(self):
+        # If there's no representation to be found, nothing is returned.
+        text, data_source = self.provider.get_full_text(self.work)
+        eq_(None, text)
+        eq_(None, data_source)
+
+        # If there isn't a representation with a 200 or None status code,
+        # nothing is returned.
+        text_rep = self.add_representation(
+            DataSource.GUTENBERG, Representation.TEXT_PLAIN, "Error"
+        )
+        text_rep.status_code = 403
+
+        text, data_source = self.provider.get_full_text(self.work)
+        eq_(None, text)
+        eq_(None, data_source)
+
+        # When the status code is corrected, there's a result.
+        text_rep.status_code = None
+        text, data_source = self.provider.get_full_text(self.work)
+        eq_("Error", text)
+        eq_(DataSource.GUTENBERG, data_source.name)
 
     def test_extract_plaintext_from_epub(self):
         source = DataSource.lookup(self._db, DataSource.FEEDBOOKS)
