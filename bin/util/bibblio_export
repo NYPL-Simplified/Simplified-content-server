@@ -28,7 +28,7 @@ parser.add_argument(
 )
 parser.add_argument(
     '--fiction', action='store_true',
-    help='Export fiction and nonfiction texts'
+    help='Export only fiction texts'
 )
 
 parsed = parser.parse_args()
